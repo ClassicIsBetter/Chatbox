@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chatbox</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<style>
+body{margin:0;font-family:Arial;background:#1e1f22;color:white;}
+.hidden{display:none;}
+#loginPage{height:100vh;display:flex;justify-content:center;align-items:center;}
+#loginBox{background:#2b2d31;padding:30px;border-radius:10px;width:300px;text-align:center;}
+input{width:90%;padding:10px;margin:6px;border:none;border-radius:6px;}
+button{padding:10px;margin:6px;background:#5865F2;color:white;border:none;border-radius:6px;cursor:pointer;}
+#chatPage{display:flex;height:100vh;}
+#sidebar{width:240px;background:#2b2d31;padding:12px;display:flex;flex-direction:column;gap:8px;}
+#roomList{display:flex;flex-direction:column;gap:5px;max-height:200px;overflow-y:auto;}
+.roomItem{background:#3a3c43;padding:6px;border-radius:6px;cursor:pointer;}
+#main{flex:1;display:flex;flex-direction:column;}
+#messages{flex:1;padding:20px;overflow-y:auto;}
+.message{display:flex;align-items:flex-start;margin-bottom:10px;}
+.message img{width:32px;height:32px;border-radius:50%;margin-right:8px;}
+.replyBox{font-size:12px;color:#aaa;border-left:3px solid #5865F2;padding-left:6px;margin-bottom:3px;display:flex;justify-content:space-between;align-items:center;}
+#replyPreview{display:none;background:#2b2d31;padding:6px;display:flex;align-items:center;justify-content:space-between;}
+#msgInput{display:flex;padding:10px;background:#313338;}
+#msgText{flex:1;}
+#typingIndicator{font-size:12px;color:#aaa;padding-left:15px;padding-bottom:5px;}
+.reactionBar{
+  margin-top:4px;
+  display:flex;
+  gap:4px;
+  align-items:center;
+}
+
+.reactionBtn{
+  background:#2b2d31;
+  border:1px solid #444;
+  color:white;
+  border-radius:12px;
+  padding:2px 8px;
+  cursor:pointer;
+}
+
+.reactionBtn:hover{
+  background:#3a3c43;
+}
+
+.addReactionBtn{
+  background:none;
+  border:none;
+  color:#aaa;
+  cursor:pointer;
+  font-size:16px;
+  padding:0 4px;
+}
+
+.addReactionBtn:hover{
+  color:white;
+}
+</style>
+</head>
+
+<body>
+<div id="loginPage">
+  <div id="loginBox">
+    <h2>Chatbox</h2>
+    <input id="username" placeholder="username">
+    <input id="password" type="password" placeholder="password">
+    <button onclick="signup()">Sign Up</button>
+    <button onclick="login()">Log In</button>
+    <p id="loginMsg"></p>
+    <input id="avatarUrl" placeholder="Profile picture URL">
+    <button onclick="setProfilePic()">Set Profile Picture</button>
+  </div>
+</div>
+
+<div id="chatPage" class="hidden">
+  <div id="sidebar">
+    <h3 id="accountName"></h3>
+    <h4>Rooms</h4>
+    <div id="roomList"></div>
+    <input id="newRoomName" placeholder="new room name">
+    <button onclick="createRoom()">Create Room</button>
+    <input id="joinCode" placeholder="room code">
+    <button onclick="joinRoom()">Join Room</button>
+    <p id="roomMsg"></p>
+    <button onclick="changeRoomIcon()">
+Change Room Icon
+</button>
+  </div>
+
+  <div id="main">
+    <div id="messages"></div>
+    <div id="typingIndicator"></div>
+    <div id="replyPreview">
+      <div>Replying to: <span id="replyText"></span></div>
+      <button onclick="cancelReply()">X</button>
+    </div>
+    <div id="msgInput">
+      <input id="msgText" placeholder="type message" oninput="userTyping()" onfocus="startTyping()" onblur="stopTyping()">
+      <button onclick="sendMsg()">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const supabaseClient = supabase.createClient(
+"https://tuwjvaequtkmcynbmmxz.supabase.co",
+"sb_publishable_ANm40Ls1Lg5TJbANaErBWg_D0fyDlkH"
+);
+
+let rooms={}, currentRoom=null, replyingTo=null, typingTimeout=null;
+const DEFAULT_PFP="https://image2url.com/r2/default/images/1773703881318-9bbc4431-0b44-41c4-94d8-2830f6b3fee0.jpeg";
+let lastTypingUsers=[];
+
+async function signup(){
+  let u=username.value.trim();
+  let p=password.value.trim();
+
+  if(!u || !p){
+    loginMsg.innerText="Enter username/password";
+    return;
+  }
+
+  if(u.includes(" ")){
+    loginMsg.innerText="Usernames cannot contain spaces";
+    return;
+  }
+
+  let {data: existing} = await supabaseClient
+    .from("users")
+    .select("username")
+    .eq("username",u);
+
+  if(existing && existing.length){
+    loginMsg.innerText="Username already exists";
+    return;
+  }
+
+  await supabaseClient.from("users").insert([{
+    username:u,
+    password:p,
+    avatar:DEFAULT_PFP
+  }]);
+
+  loginMsg.innerText="Account created! Please log in";
+}
+
+async function login(){
+
+  let u=username.value.trim();
+  let p=password.value.trim();
+
+  let {data,error} = await supabaseClient
+    .from("users")
+    .select("*")
+    .eq("username",u)
+    .eq("password",p);
+
+  if(error || !data || !data.length){
+    loginMsg.innerText="Wrong username or password";
+    return;
+  }
+
+  localStorage.setItem("currentUser",u);
+
+  loginPage.classList.add("hidden");
+  chatPage.classList.remove("hidden");
+
+  accountName.innerText="Logged in as: "+u;
+
+  loadRooms();
+}
+
+async function setProfilePic(){
+
+  let user=localStorage.getItem("currentUser");
+  let url=avatarUrl.value.trim();
+
+  if(!user || !url) return;
+
+  await supabaseClient
+    .from("users")
+    .update({
+      avatar:url
+    })
+    .eq("username",user);
+
+  alert("Profile picture updated!");
+}
+
+async function getProfilePic(user){
+
+  let {data}=await supabaseClient
+    .from("users")
+    .select("avatar")
+    .eq("username",user)
+    .single();
+
+  return data?.avatar || DEFAULT_PFP;
+}
+
+async function loadRooms(){
+  let {data}=await supabaseClient.from("rooms").select("*").order("created_at",{ascending:true});
+  if(!data) return;
+  rooms={};
+  roomList.innerHTML="";
+  data.forEach(r=>{
+    rooms[r.code]={name:r.name,code:r.code};
+    let div=document.createElement("div");
+    div.className="roomItem";
+    div.innerHTML=`
+<div style="display:flex;align-items:center;gap:8px;">
+  <img src="${r.icon || DEFAULT_PFP}"
+       style="width:24px;height:24px;border-radius:50%;">
+  <span>${r.name} (${r.code})</span>
+</div>
+`;
+    div.onclick=()=>{
+      currentRoom=rooms[r.code];
+      roomMsg.innerText="Joined room: "+r.name;
+      displayMessages();
+    }
+    roomList.appendChild(div);
+  });
+}
+
+async function changeRoomIcon(){
+
+  if(!currentRoom){
+    alert("Join a room first");
+    return;
+  }
+
+  let icon=prompt("New icon URL:");
+
+  if(!icon) return;
+
+  let user=localStorage.getItem("currentUser");
+
+  let {data}=await supabaseClient
+    .from("rooms")
+    .select("*")
+    .eq("code",currentRoom.code)
+    .single();
+
+  if(data.owner !== user){
+    alert("Only the room owner can change the icon");
+    return;
+  }
+
+  await supabaseClient
+    .from("rooms")
+    .update({icon:icon})
+    .eq("code",currentRoom.code);
+
+  roomMsg.innerText="Room icon updated";
+
+  loadRooms();
+}
+
+async function createRoom(){
+
+  let name=newRoomName.value.trim();
+
+  if(!name){
+    roomMsg.innerText="Enter room name";
+    return;
+  }
+
+  let code=Math.random()
+    .toString(36)
+    .substring(2,7)
+    .toUpperCase();
+
+  let owner=localStorage.getItem("currentUser");
+
+  await supabaseClient
+    .from("rooms")
+    .insert([{
+      name:name,
+      code:code,
+      owner:owner,
+      icon:""
+    }]);
+
+  roomMsg.innerText="Room created! Code: "+code;
+
+  loadRooms();
+}
+
+function joinRoom(){
+  let code=joinCode.value.trim().toUpperCase();
+  if(!rooms[code]){roomMsg.innerText="Invalid room code"; return;}
+  currentRoom=rooms[code];
+  roomMsg.innerText="Joined room: "+rooms[code].name;
+  displayMessages();
+}
+
+function startReply(msgId,text){
+  replyingTo={id:msgId,text:text};
+  replyPreview.style.display="flex";
+  replyText.innerText=text;
+}
+
+function cancelReply(){replyingTo=null; replyPreview.style.display="none";}
+
+async function sendMsg(){
+  if(!currentRoom){alert("Join a room first!"); return;}
+  let text=msgText.value.trim();
+  if(!text) return;
+  let user=localStorage.getItem("currentUser");
+  let avatar=await getProfilePic(user);
+  await supabaseClient.from("messages").insert([{
+    room:currentRoom.code,
+    username:user,
+    text:text,
+    avatar:avatar,
+    reply_to: replyingTo ? replyingTo.id : null
+  }]);
+  msgText.value="";
+  cancelReply();
+  displayMessages();
+}
+
+function startTyping(){userTyping();}
+function stopTyping(){clearTimeout(typingTimeout); displayMessages();}
+function userTyping(){
+  clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(displayMessages,2000);
+}
+
+async function displayMessages(){
+  if(!currentRoom) return;
+  let {data}=await supabaseClient.from("messages").select("*").eq("room",currentRoom.code).order("created_at",{ascending:true});
+  if(!data) return;
+  messages.innerHTML="";
+  let msgMap={};
+
+  let { data: reactions } = await supabaseClient
+  .from("reactions")
+  .select("*");
+
+  data.forEach(msg=>{msgMap[msg.id]=msg;});
+  
+  data.forEach(msg=>{
+    let msgReactions = reactions.filter(
+  r => r.message_id === msg.id
+);
+
+let reactionCounts = {};
+
+msgReactions.forEach(r=>{
+  if(!reactionCounts[r.emoji]){
+    reactionCounts[r.emoji] = 0;
+  }
+  reactionCounts[r.emoji]++;
+});
+
+let reactionHTML = "";
+
+for(let emoji in reactionCounts){
+  reactionHTML += `
+<button
+  class="reactionBtn"
+  onclick="reactToMessage(${msg.id}, '${emoji}')">
+  ${emoji} ${reactionCounts[emoji]}
+</button>
+`;
+}
+    let div=document.createElement("div");
+    div.className="message";
+    div.id="msg_"+msg.id;
+    let img=document.createElement("img"); img.src=msg.avatar||DEFAULT_PFP;
+    let span=document.createElement("span");
+
+    if(msg.reply_to && msgMap[msg.reply_to]){
+      let original=msgMap[msg.reply_to];
+      span.innerHTML=`<div class='replyBox'>Replying to: ${original.text} <button onclick="document.getElementById('msg_${original.id}').scrollIntoView({behavior:'smooth'})">Jump</button></div><b>${msg.username}:</b> ${msg.text}`;
+    } else {
+      span.innerHTML=`<b>${msg.username}:</b> ${msg.text}`;
+    }
+
+    div.appendChild(img);
+    div.appendChild(span);
+    let reactionBar = document.createElement("div");
+reactionBar.className = "reactionBar";
+
+reactionBar.innerHTML = reactionHTML;
+
+let addBtn = document.createElement("button");
+addBtn.className = "addReactionBtn";
+addBtn.innerText = "+";
+
+addBtn.onclick = () => {
+  showReactionPicker(msg.id);
+};
+
+reactionBar.appendChild(addBtn);
+
+div.appendChild(reactionBar);
+    messages.appendChild(div);
+  });
+  
+  messages.scrollTop=messages.scrollHeight;
+}
+
+async function reactToMessage(messageId, emoji){
+
+  let user = localStorage.getItem("currentUser");
+
+  let { data } = await supabaseClient
+    .from("reactions")
+    .select("*")
+    .eq("message_id", messageId)
+    .eq("username", user)
+    .eq("emoji", emoji);
+
+  if(data && data.length){
+
+    await supabaseClient
+      .from("reactions")
+      .delete()
+      .eq("message_id", messageId)
+      .eq("username", user)
+      .eq("emoji", emoji);
+
+  } else {
+
+    await supabaseClient
+      .from("reactions")
+      .insert([{
+        message_id: messageId,
+        username: user,
+        emoji: emoji
+      }]);
+
+  }
+
+  displayMessages();
+}
+
+function showReactionPicker(messageId){
+
+  let emoji = prompt(
+    "Enter Reaction(can be text or emoji)"
+  );
+
+  if(!emoji) return;
+
+  reactToMessage(messageId, emoji);
+}
+
+setInterval(displayMessages,10000);
+setInterval(loadRooms,5000);
+</script>
+
+</body>
+</html>
