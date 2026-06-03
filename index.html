@@ -60,12 +60,13 @@ button{padding:10px;margin:6px;background:#5865F2;color:white;border:none;border
 .message{
   display:flex;
   align-items:flex-start;
+  gap:8px;
   margin-bottom:10px;
   padding:6px;
   border-radius:6px;
   position:relative;
 }
-
+  
 .message:hover{
   background:#2a2c31;
 }
@@ -422,8 +423,12 @@ for(let emoji in reactionCounts){
       span.innerHTML=`<b>${msg.username}:</b> ${msg.text}`;
     }
 
-    div.appendChild(img);
-    div.appendChild(span);
+    let content = document.createElement("div");
+content.style.display = "flex";
+content.style.flexDirection = "column";
+content.style.flex = "1";
+    content.appendChild(span);
+    
     let actions = document.createElement("div");
 actions.className = "messageActions";
    
@@ -435,7 +440,7 @@ replyBtn.onclick = () => {
   startReply(msg.id, msg.text);
 };
     actions.appendChild(replyBtn);
-div.appendChild(actions);
+content.appendChild(actions);
     let reactionBar = document.createElement("div");
 reactionBar.className = "reactionBar";
 
@@ -451,7 +456,7 @@ addBtn.onclick = () => {
 
 reactionBar.appendChild(addBtn);
 
-div.appendChild(reactionBar);
+content.appendChild(reactionBar);
     messages.appendChild(div);
   });
   
