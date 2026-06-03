@@ -55,6 +55,47 @@ button{padding:10px;margin:6px;background:#5865F2;color:white;border:none;border
 .addReactionBtn:hover{
   color:white;
 }
+
+
+.message{
+  display:flex;
+  align-items:flex-start;
+  margin-bottom:10px;
+  padding:6px;
+  border-radius:6px;
+  position:relative;
+}
+
+.message:hover{
+  background:#2a2c31;
+}
+
+.messageActions{
+  display:none;
+  position:absolute;
+  right:8px;
+  top:6px;
+  gap:6px;
+}
+
+.message:hover .messageActions{
+  display:flex;
+}
+
+.msgBtn{
+  background:#2b2d31;
+  border:1px solid #444;
+  color:white;
+  border-radius:6px;
+  padding:2px 6px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+.msgBtn:hover{
+  background:#3a3c43;
+}
+  
 </style>
 </head>
 
@@ -329,6 +370,8 @@ function userTyping(){
 }
 
 async function displayMessages(){
+  let div=document.createElement("div");
+div.className="message";
   if(!currentRoom) return;
   let {data}=await supabaseClient.from("messages").select("*").eq("room",currentRoom.code).order("created_at",{ascending:true});
   if(!data) return;
@@ -381,6 +424,18 @@ for(let emoji in reactionCounts){
 
     div.appendChild(img);
     div.appendChild(span);
+    let actions = document.createElement("div");
+actions.className = "messageActions";
+   
+    let replyBtn = document.createElement("button");
+replyBtn.className = "msgBtn";
+replyBtn.innerText = "Reply";
+
+replyBtn.onclick = () => {
+  startReply(msg.id, msg.text);
+};
+    actions.appendChild(replyBtn);
+div.appendChild(actions);
     let reactionBar = document.createElement("div");
 reactionBar.className = "reactionBar";
 
