@@ -152,6 +152,11 @@ border-radius:6px;
 cursor:pointer;
 color:#c4c9ce;
 }
+
+.roomItem:hover{
+  background:#3a3c43;
+  color:white;
+}
   
 </style>
 </head>
@@ -324,10 +329,6 @@ async function loadRooms(){
 
 }
 
-.roomItem:hover{
-  background:#3a3c43;
-  color:white;
-}
     div.innerHTML=`
 <div style="display:flex;align-items:center;gap:8px;">
   <img src="${r.icon || DEFAULT_PFP}"
