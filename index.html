@@ -145,6 +145,13 @@ button{padding:10px;margin:6px;background:#5865F2;color:white;border:none;border
   padding:12px;
   border-top:1px solid #1e1f22;
 }
+
+.roomItem{
+padding:8px;
+border-radius:6px;
+cursor:pointer;
+color:#c4c9ce;
+}
   
 </style>
 </head>
@@ -313,11 +320,6 @@ async function loadRooms(){
     rooms[r.code]={name:r.name,code:r.code};
     let div=document.createElement("div");
     div.className="roomItem";
-    .roomItem{
-  padding:8px;
-  border-radius:6px;
-  cursor:pointer;
-  color:#c4c9ce;
 }
 
 .roomItem:hover{
