@@ -100,6 +100,16 @@ button{padding:10px;margin:6px;background:#5865F2;color:white;border:none;border
   background:rgba(88, 101, 242, 0.25);
   border-color:rgba(88, 101, 242, 0.6);
 }
+
+.timestamp{
+  color:#949ba4;
+  font-size:12px;
+  margin-left:6px;
+}
+
+.messageText{
+  margin-top:2px;
+}
   
 </style>
 </head>
@@ -430,9 +440,48 @@ for(let emoji in reactionCounts){
 
     if(msg.reply_to && msgMap[msg.reply_to]){
       let original=msgMap[msg.reply_to];
-      span.innerHTML=`<div class='replyBox'>Replying to: ${original.text} <button onclick="document.getElementById('msg_${original.id}').scrollIntoView({behavior:'smooth'})">Jump</button></div><b>${msg.username}:</b> ${msg.text}`;
+      let time = new Date(msg.created_at);
+
+let timeString = time.toLocaleTimeString([], {
+  hour:'numeric',
+  minute:'2-digit'
+});
+
+span.innerHTML = `
+<div class='replyBox'>
+  Replying to: ${original.text}
+  <button onclick="document.getElementById('msg_${original.id}').scrollIntoView({behavior:'smooth'})">
+    Jump
+  </button>
+</div>
+
+<div>
+  <b>${msg.username}</b>
+  <span class="timestamp">${timeString}</span>
+</div>
+
+<div class="messageText">
+  ${msg.text}
+</div>
+`;
     } else {
-      span.innerHTML=`<b>${msg.username}:</b> ${msg.text}`;
+      let time = new Date(msg.created_at);
+
+let timeString = time.toLocaleTimeString([], {
+  hour: 'numeric',
+  minute: '2-digit'
+});
+
+span.innerHTML = `
+<div>
+  <b>${msg.username}</b>
+  <span class="timestamp">${timeString}</span>
+</div>
+
+<div class="messageText">
+  ${msg.text}
+</div>
+`;
     }
 
     div.appendChild(img);
