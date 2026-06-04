@@ -95,6 +95,11 @@ button{padding:10px;margin:6px;background:#5865F2;color:white;border:none;border
 .msgBtn:hover{
   background:#3a3c43;
 }
+
+.reactionBtn.activeReaction{
+  background:rgba(88, 101, 242, 0.25);
+  border-color:rgba(88, 101, 242, 0.6);
+}
   
 </style>
 </head>
@@ -389,6 +394,8 @@ div.className="message";
   r => r.message_id === msg.id
 );
 
+let currentUser = localStorage.getItem("currentUser");
+
 let reactionCounts = {};
 
 msgReactions.forEach(r=>{
@@ -401,9 +408,15 @@ msgReactions.forEach(r=>{
 let reactionHTML = "";
 
 for(let emoji in reactionCounts){
+
+  let userReacted = msgReactions.some(
+  r => r.emoji === emoji &&
+       r.username === currentUser
+);
+  
   reactionHTML += `
 <button
-  class="reactionBtn"
+  class="reactionBtn ${userReacted ? 'activeReaction' : ''}"
   onclick="reactToMessage(${msg.id}, '${emoji}')">
   ${emoji} ${reactionCounts[emoji]}
 </button>
