@@ -317,17 +317,25 @@ async function getProfilePic(user){
 }
 
 async function loadRooms(){
-  let {data}=await supabaseClient.from("rooms").select("*").order("created_at",{ascending:true});
+  let {data}=await supabaseClient
+    .from("rooms")
+    .select("*")
+    .order("created_at",{ascending:true});
+
   if(!data) return;
+
   rooms={};
   roomList.innerHTML="";
+
   data.forEach(r=>{
-    rooms[r.code]={name:r.name,code:r.code};
+
+    rooms[r.code]={
+      name:r.name,
+      code:r.code
+    };
+
     let div=document.createElement("div");
     div.className="roomItem";
-});
-
-}
 
     div.innerHTML=`
 <div style="display:flex;align-items:center;gap:8px;">
@@ -336,13 +344,17 @@ async function loadRooms(){
   <span>${r.name} (${r.code})</span>
 </div>
 `;
+
     div.onclick=()=>{
       currentRoom=rooms[r.code];
       roomMsg.innerText="Joined room: "+r.name;
       displayMessages();
-    }
+    };
+
     roomList.appendChild(div);
+
   });
+
 }
 
 async function changeRoomIcon(){
